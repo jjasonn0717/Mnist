@@ -29,41 +29,36 @@ def modelINFO(model_params, out):
 	 
 
 class DNN_classifier:
-	def __init__(self, in_size=784, out_size=10, layer_num=1, layer_size=[200], L_rate=0.1, drop=0.8):
-		## input ##
-		self.in_size = in_size
-		self.out_size = out_size
-		self.x_ = tf.placeholder(tf.float32, [None, in_size], name="x_")
-		self.y_ = tf.placeholder(tf.float32, [None, out_size], name="y_")
-		self.prob_ = tf.placeholder(tf.float32, name="prob")
-		## result ##
-		self.y = None
-		#self.cross_entropy = None
-		#self.accuracy = None
-		## model ##
-		self.layer_num = layer_num
-		self.layer_size = layer_size
-		#self.weights = []
-		#self.biases = []
-		#self.acts_d = []
-                self.FCLs = []
-                self.FCLs_d = []
-		self.L_rate = L_rate
-		self.drop = drop
-		#self.optimizer = tf.train.RMSPropOptimizer(learning_rate=self.L_rate)
-		#self.trainer = None
+    def __init__(self, in_size=784, out_size=10, layer_num=1, layer_size=[200], L_rate=0.1, drop=0.8):
+        ## input ##
+        self.in_size = in_size
+        self.out_size = out_size
+        self.x_ = tf.placeholder(tf.float32, [None, in_size], name="x_")
+        self.y_ = tf.placeholder(tf.float32, [None, out_size], name="y_")
+        self.prob_ = tf.placeholder(tf.float32, name="prob")
+        
+        ## result ##
+        self.y = None
+        
+        ## model ##
+        self.layer_num = layer_num
+        self.layer_size = layer_size
+        self.FCLs = []
+        self.FCLs_d = []
+        self.L_rate = L_rate
+        self.drop = drop
                 
-                ## creat saver ##
-                self.saver = None # for model restoring
+        ## creat saver ##
+        self.saver = None # for model restoring
 
-                ## creat session ##
-		self.sess = tf.Session()
-	
-        def init_w(self, size, name):
-		return tf.Variable(tf.truncated_normal(size, stddev=0.01), name=name)
+        ## creat session ##
+        self.sess = tf.Session()
 
-	def init_b(self, size, name):
-		return tf.Variable(tf.zeros(size), name=name)
+    def init_w(self, size, name):
+        return tf.Variable(tf.truncated_normal(size, stddev=0.01), name=name)
+
+    def init_b(self, size, name):
+        return tf.Variable(tf.zeros(size), name=name)
 
     def load_model(self, model_path):
         ## build DNN graph ##
@@ -84,42 +79,45 @@ class DNN_classifier:
             fully_connected_d = layers.dropout(fully_connected, keep_prob=self.prob_)
             self.FCLs.append(fully_connected)
             self.FCLs_d.append(fully_connected_d)
-        self.y, self.loss = skflow.models.logistic_regression(self.FCLs[-1], self.y_, init_stddev=0.01)
+        self.y, loss = skflow.models.logistic_regression(self.FCLs[-1], self.y_, init_stddev=0.01)
                 
-		## initialize var ##
-		self.sess.run(tf.initialize_all_variables())
+        ## initialize var ##
+        self.sess.run(tf.initialize_all_variables())
         ## saver should be created after graph be constructed ##        
         self.saver = tf.train.Saver(max_to_keep=5) 
         self.saver.restore(self.sess, model_path)
-	
-	def test(self, x_test, y_test):
-		if x_test.shape[1] != self.in_size:
-			raise "Incorrect input size!"
-		if y_test.shape[1] != self.out_size:
-			raise "Incorrect output size!"
-                correct_prediction = tf.equal(tf.argmax(self.y, 1), tf.argmax(self.y_, 1))
-		accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
-		return self.sess.run(accuracy, feed_dict={self.x_:x_test, self.y_:y_test, self.prob_:1})
 
-	def Validate(self, in_data):
-		if in_data.shape[1] != self.in_size:
-			raise "Incorrect input size!"
-		prediction = tf.argmax(self.y, 1) ## return (num,) one dimension array
-		result = self.sess.run(prediction, feed_dict={self.x_:in_data, self.prob_:1})
-		return result
+    ## calc accuracy ##
+    def test(self, x_test, y_test):
+        if x_test.shape[1] != self.in_size:
+            raise "Incorrect input size!"
+        if y_test.shape[1] != self.out_size:
+            raise "Incorrect output size!"
+                correct_prediction = tf.equal(tf.argmax(self.y, 1), tf.argmax(self.y_, 1))
+        accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
+        return self.sess.run(accuracy, feed_dict={self.x_:x_test, self.y_:y_test, self.prob_:1})
+
+    ## predict ##
+    def Validate(self, in_data):
+        if in_data.shape[1] != self.in_size:
+            raise "Incorrect input size!"
+        prediction = tf.argmax(self.y, 1) ## return (num,) one dimension array
+        result = self.sess.run(prediction, feed_dict={self.x_:in_data, self.prob_:1})
+        return result
 
 
 class Servicer(mnist_DNN_pb2.Betamnist_InferenceServicer):
     def __init__(self, model_params, model_path):
-        ### Load DNN Model ###
-        self.Model = DNN_classifier( in_size=model_params["in_size"], 
-                    out_size=model_params["out_size"], 
-                    layer_num=model_params["layer_num"],
-                    layer_size=model_params["layer_size"], 
-                    L_rate=model_params["L_rate"], 
-                    drop=model_params["prob"])
-        print "\n### model testing start  ###"
+        ## Load DNN Model ##
+        self.Model = DNN_classifier(in_size=model_params["in_size"],
+                                    out_size=model_params["out_size"],
+                                    layer_num=model_params["layer_num"],
+                                    layer_size=model_params["layer_size"],
+                                    L_rate=model_params["L_rate"],
+                                    drop=model_params["prob"])
         self.Model.load_model(model_path)
+        ## model testing ##
+        print "\n### model testing start  ###"
         Mnist_data = input_data.read_data_sets('MNIST_data', one_hot=True)
         print "testing acc:", self.Model.test(Mnist_data.test.images, Mnist_data.test.labels)
         print "### model testing finish ###\n"

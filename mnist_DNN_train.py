@@ -38,33 +38,30 @@ class DNN_classifier:
     def __init__(self, name, in_size=784, out_size=10, layer_num=1, layer_size=[200], L_rate=0.01, drop=0.8):
         self.name = name
         
-                ## input ##
+        ## input ##
         self.in_size = in_size
         self.out_size = out_size
         self.x_ = tf.placeholder(tf.float32, [None, in_size], name="x_")
         self.y_ = tf.placeholder(tf.float32, [None, out_size], name="y_")
         self.prob_ = tf.placeholder(tf.float32, name="prob")
         
-                ## result ##
+        ## result ##
         self.y = None
         self.loss = None
         
-                ## model ##
+        ## model ##
         self.layer_num = layer_num
         self.layer_size = layer_size
-        ##self.weights = []
-        ##self.biases = []
-        ##self.acts_d = []
         self.FCLs = []
         self.FCLs_d = []
         self.drop = drop
         
         ## optimizer initialize ##
         #start_l_rate = L_rate
-        self.global_step = tf.Variable(0, trainable=False)
         #self.L_rate = tf.train.exponential_decay(start_l_rate, self.global_step, decay_step, decay_rate, staircase=False)
-        self.L_rate = L_rate
         #self.optimizer = tf.train.AdamOptimizer(learning_rate=self.L_rate)
+        self.global_step = tf.Variable(0, trainable=False)
+        self.L_rate = L_rate
         self.trainer = None
 
         ## creat saver ##
@@ -87,36 +84,7 @@ class DNN_classifier:
         return tf.Variable(tf.zeros(size), name=name)
 
     def build_model(self):	
-        '''w = self.init_w([self.in_size, self.layer_size], 
-                name ='W' + str(1))
-        b = self.init_b([self.layer_size], 
-                name='b' + str(1))
-        h = tf.nn.relu(tf.matmul(self.x_, w) + b)
-        h_d = tf.nn.dropout(h, self.prob_)
-        self.weights.append(w)
-        self.biases.append(b)
-        self.acts_d.append(h_d)
-        for i in xrange(1, self.layer_num - 1):
-            w = self.init_w([self.layer_size, self.layer_size], 
-                    name ='W' + str(i+1))
-            b = self.init_b([self.layer_size], 
-                    name='b' + str(i+1))
-            h = tf.nn.relu(tf.matmul(self.acts_d[i-1], w) + b)
-            h_d = tf.nn.dropout(h, self.prob_)
-            self.weights.append(w)
-            self.biases.append(b)
-            self.acts_d.append(h_d)
-        w = self.init_w([self.layer_size, self.out_size], 
-                name ='W' + str(len(self.weights)+1))
-        b = self.init_b([self.out_size], 
-                name='b' + str(len(self.biases)+1))
-        self.y = tf.nn.softmax(tf.matmul(self.acts_d[-1], w) + b)
-        self.weights.append(w)
-        self.biases.append(b)
-        assert len(self.weights) == len(self.biases)
-        assert len(self.biases) == len(self.acts_d) + 1
-        assert len(self.weights) == self.layer_num'''
-
+        ## building DNN Graph ##
         fully_connected = layers.fully_connected(self.x_, 
                                                  self.layer_size[0], 
                                                  weights_regularizer=layers.l2_regularizer(0.1), 
@@ -136,17 +104,18 @@ class DNN_classifier:
             self.FCLs_d.append(fully_connected_d)
 
         ## calc predict and loss ##
-        self.y, self.loss = skflow.models.logistic_regression(self.FCLs[-1], self.y_, init_stddev=0.01)
+        self.y, self.loss = skflow.models.logistic_regression(self.FCLs[-1], self.y_, init_stddev=0.01) # return output & cross_entropy
 
         '''## calc loss ##
-                self.loss = -tf.reduce_sum(tf.log(self.y)*self.y_ ) ## cross entropy
-                
-                ## gradient clip ##
-                grad = self.optimizer.compute_gradients(self.loss)
-                clipped_grad = [(tf.clip_by_value(g, -1., 1.), var) if g is not None else (tf.zeros_like(var), var) for g, var in grad]
-                # -------------- ##
-                self.trainer = self.optimizer.apply_gradients(clipped_grad, global_step=self.global_step)
-        #self.trainer = self.optimizer.minimize(self.loss, global_step=self.global_step)'''
+        self.loss = -tf.reduce_sum(tf.log(self.y)*self.y_ ) # cross entropy'''
+        
+        '''## gradient clip ##
+        grad = self.optimizer.compute_gradients(self.loss) # compute gradient
+        clipped_grad = [(tf.clip_by_value(g, -1., 1.), var) if g is not None else (tf.zeros_like(var), var) for g, var in grad] # if gradient is None assign it to zero
+        self.trainer = self.optimizer.apply_gradients(clipped_grad, global_step=self.global_step) # update parameters
+        # -------------- ##'''
+
+        '''self.trainer = self.optimizer.minimize(self.loss, global_step=self.global_step)'''
 
         ## creat trainer ##
         self.trainer = tf.contrib.layers.optimize_loss(loss=self.loss, 
@@ -158,8 +127,10 @@ class DNN_classifier:
         
         ## initialize var ##
         self.sess.run(tf.initialize_all_variables())
+        ## initialze saver, which should be created after graph constructed ##
         self.saver = tf.train.Saver(max_to_keep=5)
 
+    ## run trainer ##
     def training(self, x_batch, y_batch):
         if x_batch.shape[1] != self.in_size:
             raise "Incorrect input size!"
@@ -167,6 +138,7 @@ class DNN_classifier:
             raise "Incorrect output size!"
         self.sess.run(self.trainer, feed_dict={self.x_:x_batch, self.y_:y_batch, self.prob_:self.drop})	
 
+    ## calc accuracy ##
     def testing(self, x_test, y_test):
         if x_test.shape[1] != self.in_size:
             raise "Incorrect input size!"
@@ -176,6 +148,7 @@ class DNN_classifier:
         accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
         return self.sess.run(accuracy, feed_dict={self.x_:x_test, self.y_:y_test, self.prob_:1})
 
+    ## predict ##
     def validate(self, in_data):
         if in_data.shape[1] != self.in_size:
             raise "Incorrect input size!"
@@ -183,45 +156,26 @@ class DNN_classifier:
         result = self.sess.run(prediction, feed_dict={self.x_:in_data, self.prob_:1})
         return result
 
-    def save_model(self, d, step):
-        '''weights = []
-        biases = []
-        for num in xrange(self.layer_num):
-            w = self.sess.run(self.weights[num])
-            b = self.sess.run(self.biases[num])
-            weights.append(w.tolist())
-            biases.append(b.tolist())
-        assert len(weights) == self.layer_num
-        assert len(biases) == self.layer_num
-        f = open(d+self.name+".model", 'w')
-        json_to_write = json.dumps({
-            "in_size": self.in_size,
-            "out_size": self.out_size,
-            "layer_num": self.layer_num,
-            "layer_size": self.layer_size,
-            "L_rate": str(self.sess.run(self.L_rate))[0:9],
-            "prob": self.drop,
-            "weights": weights,
-            "biases": biases
-        }, indent=4)
-        f.write(json_to_write)
-        f.close()'''
-        if not d[-1] == '/':
-            d = d + '/'
-        if not os.path.exists(d):
-            os.makedirs(d)
-        f = open(d+self.name+".struc", 'w')
-        json_to_write = json.dumps({
-            "in_size": self.in_size,
-            "out_size": self.out_size,
-            "layer_num": self.layer_num,
-            "layer_size": self.layer_size,
-            "L_rate": self.L_rate,#str(self.sess.run(self.L_rate))[0:9],
-            "prob": self.drop,
-        }, indent=4)
+    ## save ##
+    def save_model(self, directory, step):
+        ## create saving directory ##
+        if not directory[-1] == '/':
+            directory = directory + '/'
+        if not os.path.exists(directory):
+            os.makedirs(directory)
+        ## save model structure ##
+        f = open(directory+self.name+".struc", 'w')
+        json_to_write = json.dumps({ "in_size": self.in_size,
+                                     "out_size": self.out_size,
+                                     "layer_num": self.layer_num,
+                                     "layer_size": self.layer_size,
+                                     "L_rate": self.L_rate,
+                                     "prob": self.drop }, 
+                                   indent=4)
         f.write(json_to_write)
         f.close()
-        self.saver.save(self.sess, d+self.name)
+        ## save model ##
+        self.saver.save(self.sess, directory+self.name)
 
 
 if __name__ == '__main__':
@@ -234,12 +188,14 @@ if __name__ == '__main__':
     parser.add_argument("-d", "--dir", help="directory path for model saving, default(./model)")
     args = parser.parse_args()
 
+    ## get model structure ##
     model_file = open(args.model, 'r')
     model_params = json.loads("".join(model_file.readlines()))
     model_file.close()
     if not model_params['layer_num'] == len(model_params['layer_size']):
         raise "layer_num does not match size of layer_size!!"
 
+    ## set training parameter ##
     model_dir = None
     if args.dir != None:
         model_dir = args.dir
@@ -247,27 +203,31 @@ if __name__ == '__main__':
         model_dir = "./model"
     step = int(args.iter)
     batch = int(args.batch)
-    Model = DNN_classifier(name=model_params["name"], 
-                        in_size=model_params["in_size"], 
-                        out_size=model_params["out_size"], 
-                        layer_num=model_params["layer_num"], 
-                        layer_size=model_params["layer_size"], 
-                        L_rate=model_params["L_rate"], 
-                        drop=model_params["prob"])
-    Model.build_model()
+
+    ## create DNN classifier object ##
+    Model = DNN_classifier(name=model_params["name"],
+                           in_size=model_params["in_size"],
+                           out_size=model_params["out_size"],
+                           layer_num=model_params["layer_num"],
+                           layer_size=model_params["layer_size"],
+                           L_rate=model_params["L_rate"],
+                           drop=model_params["prob"])
+    Model.build_model() # build dnn graph
     
-    outfile = sys.stdout
-    modelINFO(model_params, outfile)
+    outfile = sys.stdout # where output info write to, can be changed to file instance
+    
+    modelINFO(model_params, outfile) # print model info
 
     outfile.write('\n' + "----------------LOAD  DATA----------------" + '\n')
-    Mnist_data = input_data.read_data_sets('MNIST_data', one_hot=True)
+    Mnist_data = input_data.read_data_sets('MNIST_data', one_hot=True) # load mnist data
 
     best_acc = -1
     outfile.write('\n' + "-----------------TRAINING-----------------" + '\n')
     start = time.time()
     for i in xrange(step):
-        batch_x, batch_y = Mnist_data.train.next_batch(batch)
+        batch_x, batch_y = Mnist_data.train.next_batch(batch) # get mnist training batch
         Model.training(batch_x, batch_y)
+        ## test, save model and print progress every 50 step ##
         if ((i+1)%50) == 0:
             acc = Model.testing(Mnist_data.test.images, Mnist_data.test.labels)
             outfile.write("  epoch: " + str(i+1).ljust(len(str(step))+4))
@@ -278,9 +238,3 @@ if __name__ == '__main__':
                 Model.save_model(model_dir, i+1)
             start = time.time()
         
-    
-    #print np.transpose(Mnist_data.test.images[0]).reshape(1,784)
-    '''print Model.test(Mnist_data.test.images, Mnist_data.test.labels)
-    print "Predict By Model:", Model.Validate(testdata)[0]
-    if isLabel:
-        print "Answer:", np.argmax(testlabel)'''

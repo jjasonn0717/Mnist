@@ -26,25 +26,29 @@ def readmultidata(filelist):
 	
 	
 
-def run(addr, testimage): # removed testlabel
+def run(addr, testimage): 
 	addr_list = addr.split(":")
 	ip = addr_list[0]
 	port = addr_list[1]
 	channel = implementations.insecure_channel(ip, int(port))
 	stub = mnist_DNN_pb2.beta_create_mnist_Inference_stub(channel)
 	print "Sending Request to Server located at", (ip + ':' + port + "...")
+    
+    ## if multiple images, use batch version on server(readmultidata) ##
 	if len(testimage) == 1:
 		testdata = readdata(testimage[0])
-		reply = stub.GetInput(mnist_DNN_pb2.ImageArray(in_type="test", image=testdata), 30)
+		reply = stub.GetInput(mnist_DNN_pb2.ImageArray(in_type="test", image=testdata), 30) # in_type is just for debug
 	else:
 		test_iter = readmultidata(testimage)
 		reply = stub.GetMultiInput(test_iter, 180)
-	return reply.digits
+	
+    return reply.digits
 
+##--------- use mnist test images for server-client testing -----------------##
 def input_iter(data_list):
-        for i in xrange(len(data_list)):
-                d = data_list[i].tolist()
-                yield mnist_DNN_pb2.ImageArray(in_type="train", image=d, label=0)
+    for i in xrange(len(data_list)):
+        d = data_list[i].tolist()
+        yield mnist_DNN_pb2.ImageArray(in_type="train", image=d, label=0)
 
 def run_test(addr):
 	addr_list = addr.split(":")
@@ -53,12 +57,15 @@ def run_test(addr):
 	channel = implementations.insecure_channel(ip, int(port))
 	stub = mnist_DNN_pb2.beta_create_mnist_Inference_stub(channel)
 	print "Sending Request to Server located at", (ip + ':' + port + "...")
-        Mnist_data = input_data.read_data_sets('MNIST_data', one_hot=True)
-        gen = input_iter(Mnist_data.test.images)
-        reply = stub.GetMultiInput(gen, 30)
-        answers = np.argmax(Mnist_data.test.labels, 1)
-        acc = np.mean(np.equal(reply.digits, answers))
-        return acc
+    
+    Mnist_data = input_data.read_data_sets('MNIST_data', one_hot=True)
+    gen = input_iter(Mnist_data.test.images)
+    reply = stub.GetMultiInput(gen, 30)
+    answers = np.argmax(Mnist_data.test.labels, 1)
+    acc = np.mean(np.equal(reply.digits, answers))
+    
+    return acc
+##---------------------------------------------------------------------------##
 
 
 if __name__ == '__main__' :
@@ -66,26 +73,22 @@ if __name__ == '__main__' :
     ### Argument Parse ###
 	parser = argparse.ArgumentParser(description="mnist DNN Server!")	
 	parser.add_argument("image",nargs='+', help="absolute path for test images, remember to leave a space between each cases!")
-#	parser.add_argument("-l", "--label", help="absolute path for test label(if exist)")
 	parser.add_argument("-a", "--addr", help="address for the server, default: 127.0.0.1:50051")
     
 	args = parser.parse_args()
-#	testlabel = None
-#	if not args.label == None:
-#		l = readdata(args.label)
-#        	assert len(l) == 10
-#        	testlabel = np.argmax(l)
 
 	if args.addr == None:
         	address = '127.0.0.1:50051'
-    	else:
-        	address = args.addr
+    else:
+    	address = args.addr
     
-        print "----------run model testing----------"
-        acc = run_test(address)
-        print "accuracy:", acc, '\n' 
-    	
-        predicts = run(address, args.image) # removed testlabel
+    ## just for testing ##
+    print "----------run model testing----------"
+    acc = run_test(address)
+    print "accuracy:", acc, '\n' 
+    ##------------------##
+    
+    predicts = run(address, args.image)
 	for i in xrange(len(args.image)):
 	   	print "From server, predict the testimage \"",args.image[i],"\" be: ",predicts[i]
 

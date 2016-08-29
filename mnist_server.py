@@ -65,91 +65,32 @@ class DNN_classifier:
 	def init_b(self, size, name):
 		return tf.Variable(tf.zeros(size), name=name)
 
-	def load_model(self, model_path):    
-                fully_connected = layers.fully_connected(   self.x_,
-                                                            self.layer_size[0],
-                                                            weights_regularizer=layers.l2_regularizer(0.1), 
-                                                            biases_regularizer=layers.l2_regularizer(0.1), 
-                                                            scope='FCL'+str(1))
-                fully_connected_d = layers.dropout(fully_connected, keep_prob=self.prob_)
-                self.FCLs.append(fully_connected)
-                self.FCLs_d.append(fully_connected_d)
-                for layer in xrange(1, self.layer_num):    
-                    fully_connected = layers.fully_connected(   self.FCLs_d[-1],
-                                                                self.layer_size[layer],
-                                                                weights_regularizer=layers.l2_regularizer(0.1), 
-                                                                biases_regularizer=layers.l2_regularizer(0.1), 
-                                                                scope='FCL'+str(layer+1))
-                    fully_connected_d = layers.dropout(fully_connected, keep_prob=self.prob_)
-                    self.FCLs.append(fully_connected)
-                    self.FCLs_d.append(fully_connected_d)
-                self.y, self.loss = skflow.models.logistic_regression(self.FCLs[-1], self.y_, init_stddev=0.01)
+    def load_model(self, model_path):
+        ## build DNN graph ##
+        fully_connected = layers.fully_connected(self.x_,
+                                                 self.layer_size[0],
+                                                 weights_regularizer=layers.l2_regularizer(0.1), 
+                                                 biases_regularizer=layers.l2_regularizer(0.1), 
+                                                 scope='FCL'+str(1))
+        fully_connected_d = layers.dropout(fully_connected, keep_prob=self.prob_)
+        self.FCLs.append(fully_connected)
+        self.FCLs_d.append(fully_connected_d)
+        for layer in xrange(1, self.layer_num):    
+            fully_connected = layers.fully_connected(self.FCLs_d[-1],
+                                                     self.layer_size[layer],
+                                                     weights_regularizer=layers.l2_regularizer(0.1), 
+                                                     biases_regularizer=layers.l2_regularizer(0.1), 
+                                                     scope='FCL'+str(layer+1))
+            fully_connected_d = layers.dropout(fully_connected, keep_prob=self.prob_)
+            self.FCLs.append(fully_connected)
+            self.FCLs_d.append(fully_connected_d)
+        self.y, self.loss = skflow.models.logistic_regression(self.FCLs[-1], self.y_, init_stddev=0.01)
                 
-		'''w = self.init_w([self.in_size, self.layer_size], 
-				name ='W' + str(1))
-		b = self.init_b([self.layer_size], 
-				name='b' + str(1))
-		h = tf.nn.relu(tf.matmul(self.x_, w) + b)
-		h_d = tf.nn.dropout(h, self.prob_)
-		self.weights.append(w)
-		self.biases.append(b)
-		self.acts_d.append(h_d)
-		for i in xrange(1, self.layer_num - 1):
-			w = self.init_w([self.layer_size, self.layer_size], 
-					name ='W' + str(i+1))
-			b = self.init_b([self.layer_size], 
-					name='b' + str(i+1))
-			h = tf.nn.relu(tf.matmul(self.acts_d[i-1], w) + b)
-			h_d = tf.nn.dropout(h, self.prob_)
-			self.weights.append(w)
-			self.biases.append(b)
-			self.acts_d.append(h_d)
-		w = self.init_w([self.layer_size, self.out_size], 
-				name ='W' + str(len(self.weights)+1))
-		b = self.init_b([self.out_size], 
-				name='b' + str(len(self.biases)+1))
-		self.y = tf.nn.softmax(tf.matmul(self.acts_d[-1], w) + b)
-		self.weights.append(w)
-		self.biases.append(b)
-		assert len(self.weights) == len(self.biases)
-		assert len(self.biases) == len(self.acts_d) + 1
-		assert len(self.weights) == self.layer_num'''
-		
-                '''w = tf.Variable(model_params['weights'][0], 
-				name ='W' + str(1))
-		b = tf.Variable(model_params['biases'][0], 
-				name='b' + str(1))
-		h = tf.nn.sigmoid(tf.matmul(self.x_, w) + b)
-		h_d = tf.nn.dropout(h, self.prob_)
-		self.weights.append(w)
-		self.biases.append(b)
-		self.acts_d.append(h_d)
-		for i in xrange(1, self.layer_num - 1):
-			w = tf.Variable(model_params['weights'][i], 
-					name ='W' + str(i+1))
-			b = tf.Variable(model_params['biases'][i], 
-					name='b' + str(i+1))
-			h = tf.nn.sigmoid(tf.matmul(self.acts_d[i-1], w) + b)
-			h_d = tf.nn.dropout(h, self.prob_)
-			self.weights.append(w)
-			self.biases.append(b)
-			self.acts_d.append(h_d)
-		w = tf.Variable(model_params['weights'][-1], 
-				name ='W' + str(len(self.weights)+1))
-		b = tf.Variable(model_params['biases'][-1], 
-				name='b' + str(len(self.biases)+1))
-		self.y = tf.nn.softmax(tf.matmul(self.acts_d[-1], w) + b)
-		self.weights.append(w)
-		self.biases.append(b)
-		assert len(self.weights) == len(self.biases)
-		assert len(self.biases) == len(self.acts_d) + 1
-		assert len(self.weights) == self.layer_num'''
-
 		## initialize var ##
 		self.sess.run(tf.initialize_all_variables())
-                
-                self.saver = tf.train.Saver(max_to_keep=5) 
-                self.saver.restore(self.sess, model_path)
+        ## saver should be created after graph be constructed ##        
+        self.saver = tf.train.Saver(max_to_keep=5) 
+        self.saver.restore(self.sess, model_path)
 	
 	def test(self, x_test, y_test):
 		if x_test.shape[1] != self.in_size:
@@ -248,24 +189,24 @@ if __name__ == '__main__':
 	parser = argparse.ArgumentParser(description="mnist DNN Server!")	
 	parser.add_argument("struc", help="absolute path for the structure of trained model")
 	parser.add_argument("model", help="absolute path for trained model")
-        parser.add_argument("-a", "--addr", help="address for the server, default: 0.0.0.0:50051")
+    parser.add_argument("-a", "--addr", help="address for the server, default: 0.0.0.0:50051")
 	args = parser.parse_args()
 
 	model_file = open(args.struc, 'r')
 	model_params = json.loads("".join(model_file.readlines()))
 	model_file.close()
-        if not model_params['layer_num'] == len(model_params['layer_size']):
-            raise "layer_num does not match size of layer_size!!"
+    if not model_params['layer_num'] == len(model_params['layer_size']):
+        raise "layer_num does not match size of layer_size!!"
 	
 	outfile = sys.stdout
 	modelINFO(model_params, outfile)
 
-        ### Mnist DNN Server ###
-        if args.addr == None:
-            address = '0.0.0.0:50051'
-        else:
-            address = args.addr
-        mnist_dnn_server = Mnist_DNN_Server(address, model_params, args.model)
-        mnist_dnn_server.server_run()
+    ### Mnist DNN Server ###
+    if args.addr == None:
+        address = '0.0.0.0:50051'
+    else:
+        address = args.addr
+    mnist_dnn_server = Mnist_DNN_Server(address, model_params, args.model)
+    mnist_dnn_server.server_run()
 
 	

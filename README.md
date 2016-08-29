@@ -1,6 +1,6 @@
 ###DNN Training Usage
 1. launch mnist DNN trainer by ```python mnist_DNN_train.py MODEL_STRUC ITER BATCH [-d DIR]```
-2. also see ```python mnist_DNN_train.py -h```
+2. also see ```python mnist_DNN_train.py -h``` for more help
 
 ###Server-Client Usage
 1. execute ```./run_codegen.sh``` to produce the file mnist_DNN_pb2.py

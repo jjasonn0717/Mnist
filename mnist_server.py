@@ -13,19 +13,19 @@ from tensorflow.examples.tutorials.mnist import input_data
 SERVER_TIMEOUT = 10*60
 
 def modelINFO(model_params, out):
-	out.write("----------MODEL INFO----------"+'\n')
-	out.write(("  Input Size:").ljust(25))
-	out.write(str(model_params["in_size"])+'\n')
-	out.write(("  Output Size:").ljust(25))
-	out.write(str(model_params["out_size"])+'\n')
-	out.write(("  Hidden Layers:").ljust(25))
-	out.write(str(model_params["layer_num"])+'\n')
-	out.write(("  Number of Nodes:").ljust(25))
-	out.write(str(model_params["layer_size"])+'\n')
-	out.write(("  Learning Rate:").ljust(25))
-	out.write(str(model_params["L_rate"])+'\n')
-	out.write(("  Dropout Prob:").ljust(25))
-	out.write(str(model_params["prob"])+'\n')
+    out.write("----------MODEL INFO----------"+'\n')
+    out.write(("  Input Size:").ljust(25))
+    out.write(str(model_params["in_size"])+'\n')
+    out.write(("  Output Size:").ljust(25))
+    out.write(str(model_params["out_size"])+'\n')
+    out.write(("  Hidden Layers:").ljust(25))
+    out.write(str(model_params["layer_num"])+'\n')
+    out.write(("  Number of Nodes:").ljust(25))
+    out.write(str(model_params["layer_size"])+'\n')
+    out.write(("  Learning Rate:").ljust(25))
+    out.write(str(model_params["L_rate"])+'\n')
+    out.write(("  Dropout Prob:").ljust(25))
+    out.write(str(model_params["prob"])+'\n')
 	 
 
 class DNN_classifier:
@@ -93,7 +93,7 @@ class DNN_classifier:
             raise "Incorrect input size!"
         if y_test.shape[1] != self.out_size:
             raise "Incorrect output size!"
-                correct_prediction = tf.equal(tf.argmax(self.y, 1), tf.argmax(self.y_, 1))
+        correct_prediction = tf.equal(tf.argmax(self.y, 1), tf.argmax(self.y_, 1))
         accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
         return self.sess.run(accuracy, feed_dict={self.x_:x_test, self.y_:y_test, self.prob_:1})
 
@@ -182,22 +182,22 @@ class Mnist_DNN_Server:
 
 
 if __name__ == '__main__':
-	
-	### Argument Parse ###
-	parser = argparse.ArgumentParser(description="mnist DNN Server!")	
-	parser.add_argument("struc", help="absolute path for the structure of trained model")
-	parser.add_argument("model", help="absolute path for trained model")
-    parser.add_argument("-a", "--addr", help="address for the server, default: 0.0.0.0:50051")
-	args = parser.parse_args()
 
-	model_file = open(args.struc, 'r')
-	model_params = json.loads("".join(model_file.readlines()))
-	model_file.close()
+    ### Argument Parse ###
+    parser = argparse.ArgumentParser(description="mnist DNN Server!")	
+    parser.add_argument("struc", help="absolute path for the structure of trained model")
+    parser.add_argument("model", help="absolute path for trained model")
+    parser.add_argument("-a", "--addr", help="address for the server, default: 0.0.0.0:50051")
+    args = parser.parse_args()
+
+    model_file = open(args.struc, 'r')
+    model_params = json.loads("".join(model_file.readlines()))
+    model_file.close()
     if not model_params['layer_num'] == len(model_params['layer_size']):
         raise "layer_num does not match size of layer_size!!"
-	
-	outfile = sys.stdout
-	modelINFO(model_params, outfile)
+
+    outfile = sys.stdout
+    modelINFO(model_params, outfile)
 
     ### Mnist DNN Server ###
     if args.addr == None:

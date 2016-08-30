@@ -76,7 +76,6 @@ class DNN_classifier:
         staircase = False
         return tf.train.exponential_decay(l_rate, global_step, decay_step, decay_rate, staircase)
 
-
     def init_w(self, size, name):
         return tf.Variable(tf.truncated_normal(size, stddev=0.01), name=name)
 

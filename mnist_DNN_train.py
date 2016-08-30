@@ -106,14 +106,14 @@ class DNN_classifier:
         ## calc predict and loss ##
         self.y, self.loss = skflow.models.logistic_regression(self.FCLs[-1], self.y_, init_stddev=0.01) # return output & cross_entropy
 
-        '''## calc loss ##
-        self.loss = -tf.reduce_sum(tf.log(self.y)*self.y_ ) # cross entropy'''
+        ## calc loss ##
+        self.loss = -tf.reduce_sum(tf.log(self.y)*self.y_ ) # cross entropy
         
-        '''## gradient clip ##
+        ## gradient clip ##
         grad = self.optimizer.compute_gradients(self.loss) # compute gradient
         clipped_grad = [(tf.clip_by_value(g, -1., 1.), var) if g is not None else (tf.zeros_like(var), var) for g, var in grad] # if gradient is None assign it to zero
         self.trainer = self.optimizer.apply_gradients(clipped_grad, global_step=self.global_step) # update parameters
-        # -------------- ##'''
+        # -------------- ##
 
         '''self.trainer = self.optimizer.minimize(self.loss, global_step=self.global_step)'''
 
